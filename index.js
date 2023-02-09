@@ -11,6 +11,11 @@ const configuration = new Configuration({
 
 const openai = new OpenAIApi(configuration)
 
+const handleError = (e) => {
+  console.log("errorrr", e)
+  return `👷🏻‍♂️ OpenAI Response Error: ${e.response.data.error.message}`
+}
+
 const handleDavinciCommand = async (text) => {
   const options = {
     model: "text-davinci-003",
@@ -27,7 +32,7 @@ const handleDavinciCommand = async (text) => {
     })
     return `Chat GPT 🤖\n\n ${botResponse.trim()}`
   } catch (e) {
-      return `👷🏻‍♂️ OpenAI Response Error: ${e.response.data.error.message}`
+      return handleError(e)
   }
 }
 
@@ -42,36 +47,27 @@ const handleDalleCommand = async (text) => {
     const response = await openai.createImage(options)
     return response.data.data[0].url
   } catch (e) {
-      return `👷🏻‍♂️ OpenAI Response Error: ${e.response.data.error.message}`
+      return handleError(e)
   }
 }
 
 const handleCommand = async (client, message) => {
-  const iaCommands = {
-      davinci3: "/bot",
-      dalle: "/img"
+  const commands = {
+      "gpt": handleDavinciCommand,
+      "image": handleDalleCommand
   }
 
-  const firstWord = message.text.substring(0, message.text.indexOf(" "))
-  const text = message.text.substring(message.text.indexOf(" "))
+  const [command, ...args] = message.text.split(" ")
+  const handler = commands[command.substr(1)]
+
+  if (!handler) {
+      return
+  }
+
+  const response = await handler(args.join(" "))
   const from = message.from === process.env.WHAST_BOT_NUMBER ? message.to : message.from
 
-  switch (firstWord) {
-    case iaCommands.davinci3:
-      const response = await handleDavinciCommand(text)
-      client.sendText(from, response)
-      break
-
-    case iaCommands.dalle:
-      const imgUrl = await handleDalleCommand(text)
-      client.sendImage(
-          from,
-          imgUrl,
-          text,
-          'IA DALL-E IMAGE 👨🏼‍🎨 '
-      )
-      break
-  }
+  client.sendText(from, response)
 }
 
 create({
